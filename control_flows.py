@@ -7,10 +7,10 @@ ALL CONTROL FLOW FUNCTIONS SHOULD RETURN FINAL CHANNEL VALUES IN TUPLE
 (0, 1, 2, 3). Allow FSM obj to reset the position. 
 """
 
-import slew
+
 import time
 import voltage_helpers as helpers
-from setup import VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS, VBIAS, DELAY_S
+from setup_fsm import VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS, VBIAS, DELAY_S
 
 def angle_to_angle(x: float, y: float) -> None:
     raise NotImplementedError

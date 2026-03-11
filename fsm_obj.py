@@ -5,10 +5,10 @@ FSM class for python testing dev.
 import math
 import time
 import threading
-import setup
+import setup_fsm
 import voltage_helpers as helpers
 
-V_MAX = setup.VDIFF_MAX_VOLTS  # 180
+V_MAX = setup_fsm.VDIFF_MAX_VOLTS  # 180
 
 
 class FSM():
@@ -23,11 +23,11 @@ class FSM():
         if slew_time:
             self.slew_time = slew_time
         else:
-            self.slew_time = setup.SLEW_RATE_MS
+            self.slew_time = setup_fsm.SLEW_RATE_MS
         if slew_step:
             self.slew_step = slew_step
         else:
-            self.slew_step = setup.SLEW_AMOUNT_V
+            self.slew_step = setup_fsm.SLEW_AMOUNT_V
 
     def begin(self) -> int:
         """
@@ -36,9 +36,9 @@ class FSM():
 
         self.vdiff_x = 0.0
         self.vdiff_y = 0.0
-        if setup.IS_LINUX:
+        if setup_fsm.IS_LINUX:
             print("LINUX OS --> SETTING UP FSM")
-            self.spi, self.enable = setup.fsm_begin()
+            self.spi, self.enable = setup_fsm.fsm_begin()
             if self.spi is not None and self.enable is not None:
                 return 0
             else: 
@@ -51,7 +51,7 @@ class FSM():
 
     def close(self) -> int:
 
-        setup.fsm_close((self.vdiff_x, self.vdiff_y), (self.slew_time, self.slew_step), self.spi, self.enable)
+        setup_fsm.fsm_close((self.vdiff_x, self.vdiff_y), (self.slew_time, self.slew_step), self.spi, self.enable)
         self.spi = None
         self.enable = None
         self.vdiff_x = 0
@@ -77,10 +77,10 @@ class FSM():
 
     def set_vdiff(self, vdiff_x_new, vdiff_y_new) -> int:
 
-        if vdiff_x_new >= setup.VDIFF_MAX_VOLTS or vdiff_y_new >= setup.VDIFF_MAX_VOLTS:
+        if vdiff_x_new >= setup_fsm.VDIFF_MAX_VOLTS or vdiff_y_new >= setup_fsm.VDIFF_MAX_VOLTS:
             print("VDIFF TOO HIGH")
             return -1
-        if vdiff_x_new <= setup.VDIFF_MIN_VOLTS or setup.VDIFF_MIN_VOLTS >= vdiff_y_new:
+        if vdiff_x_new <= setup_fsm.VDIFF_MIN_VOLTS or setup_fsm.VDIFF_MIN_VOLTS >= vdiff_y_new:
             print("VDIFF TOO LOW")
             return -1
         
