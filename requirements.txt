@@ -1,0 +1,3 @@
+# BeagleBone hardware access for Mirrorcle MEMS driver (SPI, GPIO, PWM).
+# Run may require: sudo, or user in gpio/pwm groups (e.g. sudo usermod -a -G gpio,pwm $USER).
+Adafruit-BBIO>=1.2.0
