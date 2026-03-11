@@ -1,0 +1,40 @@
+# filter clock pins
+FCLK_PWM_PIN_1 = 4  # Must be a PWM-capable pin; config-pin to pwm if needed
+FCLK_PWM_PIN_2 = 5
+FCLK_HZ = 30_000
+FCLK_DUTY_PERCENT = 50.0
+
+# delay
+DELAY_MS = 10
+DELAY_S = DELAY_MS / 1000.0
+
+# voltages
+VBIAS = 90.0  # Volts; 0 < VBIAS <= 200 FOR 90V VBIAS MAX VDIFF IS 180V
+VDIFF_MAX_VOLTS = 177 # Driver can do max 200V, current mirror is 180V
+VDIFF_MIN_VOLTS = -177
+V_MAX_CHANNEL= VBIAS + VDIFF_MAX_VOLTS / 2
+V_MAX_DIGITAL = (V_MAX_CHANNEL / 200) * 65535.0
+
+
+SLEW_RATE_MS = 1 / 1000.0
+SLEW_AMOUNT_V = 0.25 # in units of volts
+
+# DAC to FSM enable
+#DAC_ENABLE_CHIP = "gpiochip0"
+DAC_ENABLE_LINE = 6
+
+# DAC setup 
+DAC_RESET = 0x280001
+DAC_ENABLE_INTERFACE = 0x380001
+DAC_ENABLE_CHANNELS = 0x20000F
+DAC_ENABLE_SOFTWARE = 0x300000
+
+# DAC channels
+DAC_CH0 = 0
+DAC_CH1 = 1
+DAC_CH2 = 2
+DAC_CH3 = 3
+
+# SPI setup
+SPI_MODE = 0b01
+SPI_MAX_SPEED = 1_000_000
