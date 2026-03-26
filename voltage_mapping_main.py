@@ -32,11 +32,11 @@ def get_frames(cam, num_frames, roi) -> tuple:
     
     return ((sum(cx)/len(cx)), (sum(cy)/len(cy)))
 
-def write_to_outfile(outfile, coords):
+def write_to_outfile(outfile, coords, mode):
     """
     Write data from results array into outfile
     """
-    with open(outfile, "a", newline="") as f:
+    with open(outfile, mode, newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["vdiffx", "vdiffy", "cx", "cy"])
         writer.writerows(coords)
@@ -62,7 +62,9 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
     cam = picam.init_camera()
     # fsm now live
     active = fsm.begin()
-
+    # reset outfile
+    with open(outfile, "w", newline="") as f:
+        pass
     coords = []
 
     if mode == "man":
@@ -94,7 +96,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                 print("Other error occurred, shutting down.")
             finally:
                 fsm.close()
-                write_to_outfile(outfile, coords)
+                write_to_outfile(outfile, coords, "a")
                 return
         else:
             print("FSM failed to start up, shutting down")
@@ -134,7 +136,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                 print("Other error occurred, shutting down.")
             finally:
                 fsm.close()
-                write_to_outfile(outfile, coords)
+                write_to_outfile(outfile, coords, "w")
                 return
 
     elif mode == "test-cam":
