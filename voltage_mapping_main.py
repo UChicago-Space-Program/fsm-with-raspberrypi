@@ -138,6 +138,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
         print("Taking picture with picam to test dat jit")
         gray = picam.get_gray_frame(cam)
         centroiding.grayscale_to_outfile(gray, "gray1.jpg")
+        fsm.close()
 
     # ok if everything is behaving nicely, now we need to figure out what sweep we are performing. 
 
