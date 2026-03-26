@@ -37,7 +37,7 @@ class FSM():
         self.vdiff_x = 0.0
         self.vdiff_y = 0.0
         if setup_fsm.IS_LINUX:
-            print("LINUX OS --> SETTING UP FSM")
+            print("LINUX OS DETECTED --> SETTING UP FSM")
             self.spi, self.enable = setup_fsm.fsm_begin()
             if self.spi is not None and self.enable is not None:
                 return 0

@@ -1,24 +1,29 @@
-from picamera2 import Picamera2, Preview
+try:
+    from picamera2 import Picamera2
+except ImportError:
+    ...
 import time
 
-# Initialize camera
-picam2 = Picamera2()
+def init_camera(resolution=(640, 480)):
+    picam2 = Picamera2()
+    # Efficient config: YUV420 → fast grayscale (Y channel)
+    config = picam2.create_video_configuration(
+        main={"format": "YUV420", "size": resolution},
+        controls={
+            "FrameRate": 60  # adjust as needed
+        }
+    )
+    picam2.configure(config)
+    # Start camera
+    picam2.start()
+    # Let auto-exposure settle (important)
+    time.sleep(1)
+    return picam2
 
-# Use a normal capture config (preview config not needed for headless)
-camera_config = picam2.create_still_configuration()
-picam2.configure(camera_config)
-
-# Start camera
-picam2.start()
-time.sleep(2)  # let auto-exposure/white balance settle
-
-# Capture a single image to file
-picam2.capture_file("test3.jpg")
-
-# Or capture to a numpy array for OpenCV processing
-frame = picam2.capture_array()
-
-# Example: show shape
-print("Captured frame shape:", frame.shape)
+def get_gray_frame(picam2):
+    frame = picam2.capture_array()
+    # Y channel = grayscale (fast, no conversion)
+    gray = frame[:, :, 0]
+    return gray
 
 

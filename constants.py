@@ -10,8 +10,8 @@ DELAY_S = DELAY_MS / 1000.0
 
 # voltages
 VBIAS = 90.0  # Volts; 0 < VBIAS <= 200 FOR 90V VBIAS MAX VDIFF IS 180V
-VDIFF_MAX_VOLTS = 177 # Driver can do max 200V, current mirror is 180V
-VDIFF_MIN_VOLTS = -177
+VDIFF_MAX_VOLTS = 175 # Driver can do max 200V, current mirror is 180V
+VDIFF_MIN_VOLTS = -175
 V_MAX_CHANNEL= VBIAS + VDIFF_MAX_VOLTS / 2
 V_MAX_DIGITAL = (V_MAX_CHANNEL / 200) * 65535.0
 

@@ -69,7 +69,7 @@ def fsm_begin() -> tuple:
 
     print(f'FSM Init: VBIAS: {VBIAS} -- MAX VDIFF: {VDIFF_MAX_VOLTS} -- MIN VDIFF: {VDIFF_MIN_VOLTS} -- SLEW RATE: {SLEW_RATE_MS}')
     print(f'If these settings look correct, input "Y" to continue. Continuing will result in FSM being active at {VBIAS}V VBIAS. Press any other key to quit')
-    resp = input("continue: ")
+    resp = input("continue?: ")
     if (resp != "Y"):
         return (None, None)
     
@@ -133,8 +133,6 @@ def fsm_close(start_state, slew_params, spi, pi):
 
     # recalculate digital bias
     digital_bias = helpers.channel_voltage_to_digital(VBIAS)
-    print("Digital Bias:", digital_bias)
-
 
 
     # set fsm back to vbias just in case
@@ -154,4 +152,6 @@ def fsm_close(start_state, slew_params, spi, pi):
 
         #close spi connection
         spi.close()
+
+        print("Shut down FSM")
 
