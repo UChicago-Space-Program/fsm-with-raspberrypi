@@ -122,7 +122,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
 
             curr_vdiff = start
             try:
-                while curr_vdiff < end:
+                while curr_vdiff <= end:
 
                     if axis == "x":
                         fsm.set_vdiff(curr_vdiff, 0)
