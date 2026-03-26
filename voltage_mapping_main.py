@@ -57,14 +57,15 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
     """
     cmd function for click to enable easy CLI
     """
+
+    # get FSM object, picamera
+    fsm = FSM()
+    cam = picam.init_camera()
     if mode == "test-cam":
         print("Taking picture with picam to test dat jit")
         gray = picam.get_gray_frame(cam)
         centroiding.grayscale_to_outfile(gray, "gray1.jpg")
         return
-    # get FSM object, picamera
-    fsm = FSM()
-    cam = picam.init_camera()
     # fsm now live
     active = fsm.begin()
     # reset outfile
