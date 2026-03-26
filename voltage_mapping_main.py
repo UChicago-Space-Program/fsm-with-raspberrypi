@@ -101,7 +101,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
 
     if mode == "auto":
         if active != 1:
-            fsm.set_vdiff()
+
             print(f'[AUTO] FSM is active at {fsm.vdiff_x} Vdiff-x | {fsm.vdiff_y} Vdiff-y')
 
             if VDIFF_MIN_VOLTS > start or start > VDIFF_MAX_VOLTS:
