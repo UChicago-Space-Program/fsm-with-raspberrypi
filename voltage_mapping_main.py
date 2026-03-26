@@ -140,6 +140,10 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
         centroiding.grayscale_to_outfile(gray, "gray1.jpg")
         fsm.close()
 
+    else:
+        print("Invalid mode, shutting down")
+        fsm.close()
+
     # ok if everything is behaving nicely, now we need to figure out what sweep we are performing. 
 
 if __name__ == "__main__":
