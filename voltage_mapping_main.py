@@ -95,11 +95,13 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
             finally:
                 fsm.close()
                 write_to_outfile(outfile, coords)
+                return
         else:
             print("FSM failed to start up, shutting down")
             fsm.close()
+            return
 
-    if mode == "auto":
+    elif mode == "auto":
         if active != 1:
 
             print(f'[AUTO] FSM is active at {fsm.vdiff_x} Vdiff-x | {fsm.vdiff_y} Vdiff-y')
@@ -133,16 +135,19 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
             finally:
                 fsm.close()
                 write_to_outfile(outfile, coords)
+                return
 
-    if mode == "test-cam":
+    elif mode == "test-cam":
         print("Taking picture with picam to test dat jit")
         gray = picam.get_gray_frame(cam)
         centroiding.grayscale_to_outfile(gray, "gray1.jpg")
         fsm.close()
+        return
 
     else:
         print("Invalid mode, shutting down")
         fsm.close()
+        return
 
     # ok if everything is behaving nicely, now we need to figure out what sweep we are performing. 
 
