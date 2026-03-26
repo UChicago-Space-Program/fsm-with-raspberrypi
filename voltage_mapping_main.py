@@ -124,7 +124,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                     
                     time.sleep(settling_time)
 
-
+                    curr_vdiff += step_size
 
             except KeyboardInterrupt:
                 print("Keyboard interrupt received — shutting down")
