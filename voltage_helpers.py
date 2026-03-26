@@ -86,7 +86,6 @@ def slew_x(start_vdiff: float, end_vdiff: float, slew_params: tuple, spi) -> flo
             if ok1 == -1 or ok2 == 1:
                 return curr_vdiff
             break
-        print(f'DAC WRITE VDIFFX -- ch0: {ch0_v} ch1: {ch1_v} (vdiff_x: {curr_vdiff})')
         ch0_dac = channel_voltage_to_digital(ch0_v)
         ch1_dac = channel_voltage_to_digital(ch1_v)
         if (ch0_dac == -1 or ch1_dac == -1):
@@ -138,7 +137,6 @@ def slew_y(start_vdiff: float, end_vdiff: float, slew_params: tuple, spi) -> Non
             if (ok2 == -1 or ok3 == -1):
                 return curr_vdiff
             break
-        print(f'DAC WRITE VDIFFY -- ch2: {ch2_v} ch3: {ch3_v} (vdiff_y: {curr_vdiff})')
         ch2_dac = channel_voltage_to_digital(ch2_v)
         ch3_dac = channel_voltage_to_digital(ch3_v)
         if ch2_dac == -1 or ch3_dac == -1:
