@@ -64,6 +64,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
     try:
         cam = picam.init_camera()
     except:
+        fsm.begin()
         input("Cam not connected. FSM is enabled, press any key to shutdown and end")
         fsm.close()
         return
