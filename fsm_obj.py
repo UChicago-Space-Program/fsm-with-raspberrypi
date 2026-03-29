@@ -49,6 +49,10 @@ class FSM():
 
     def close(self) -> int:
 
+        if not self.spi:
+            print("[FSM Close] FSM not active, nothing to close")
+            return
+
         setup_fsm.fsm_close((self.vdiff_x, self.vdiff_y), (self.slew_time, self.slew_step), self.spi, self.enable)
         self.spi = None
         self.enable = None

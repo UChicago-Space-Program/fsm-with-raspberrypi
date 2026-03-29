@@ -64,10 +64,9 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
     try:
         cam = picam.init_camera()
     except:
-        fsm.begin()
-        input("Cam not connected. FSM is enabled, press any key to shutdown and end")
-        fsm.close()
+        input("Cam not connected. FSM is not active. Press any key to shutdown and end")
         return
+    
     if mode == "test-cam":
         print("Taking picture with picam to test dat jit")
         gray = picam.get_gray_frame(cam)
