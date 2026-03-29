@@ -149,8 +149,6 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                 write_to_outfile(outfile, coords, "w")
                 return
 
-
-
     else:
         print("Invalid mode, shutting down")
         fsm.close()
