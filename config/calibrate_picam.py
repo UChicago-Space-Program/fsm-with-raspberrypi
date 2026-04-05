@@ -5,6 +5,8 @@ Capture calibration images with get_calib_photos.py (Picamera2), then run this
 script to produce camera_params.npz next to this file.
 """
 import argparse
+import json
+import time
 from pathlib import Path
 
 import cv2
@@ -30,6 +32,36 @@ board = aruco.CharucoBoard((SQUARES_X, SQUARES_Y), SQUARE_LENGTH, MARKER_LENGTH,
 detector_params = aruco.DetectorParameters()
 detector = aruco.CharucoDetector(board)
 
+# #region agent log
+_AGENT_LOG_CANDIDATES = (
+    Path("/Users/cadentebow/pulseA_FSM/fsm_driver_dev/mirrorcle_driver_src/rasppi_src/.cursor/debug-499e85.log"),
+    Path(__file__).resolve().parent.parent / ".cursor" / "debug-499e85.log",
+)
+
+
+def _agent_log(hypothesis_id: str, location: str, message: str, data: dict) -> None:
+    entry = {
+        "sessionId": "499e85",
+        "runId": "charuco-detect",
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": int(time.time() * 1000),
+    }
+    line = json.dumps(entry) + "\n"
+    for log_path in _AGENT_LOG_CANDIDATES:
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(line)
+            break
+        except OSError:
+            continue
+
+
+# #endregion
+
 
 def calibrate_lens(image_files):
     """
@@ -47,6 +79,23 @@ def calibrate_lens(image_files):
     img_size = None
 
     paths = [Path(p) for p in image_files]
+    # #region agent log
+    _agent_log(
+        "H1_H2",
+        "calibrate_picam.calibrate_lens:start",
+        "board_config_and_inputs",
+        {
+            "opencv_version": cv2.__version__,
+            "squares_xy": [SQUARES_X, SQUARES_Y],
+            "square_length": SQUARE_LENGTH,
+            "marker_length": MARKER_LENGTH,
+            "dict_type": int(DICT_TYPE),
+            "calib_images_count": len(paths),
+            "first_three_names": [paths[i].name for i in range(min(3, len(paths)))],
+            "min_ids_required_gt": 4,
+        },
+    )
+    # #endregion
     if len(paths) < MIN_CALIB_IMAGES:
         raise ValueError(
             f"Need at least {MIN_CALIB_IMAGES} images; got {len(paths)}"
@@ -55,12 +104,34 @@ def calibrate_lens(image_files):
     for fname in paths:
         img = cv2.imread(str(fname))
         if img is None:
+            # #region agent log
+            _agent_log("H5", "calibrate_picam.calibrate_lens:imread", "failed", {"file": str(fname)})
+            # #endregion
             raise ValueError(f"Could not read image: {fname}")
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_size = gray.shape[::-1]
 
         charuco_corners, charuco_ids, _, _ = detector.detectBoard(gray)
+        n_ids = 0 if charuco_ids is None else int(len(charuco_ids))
+        ids_none = charuco_ids is None
+        # #region agent log
+        _agent_log(
+            "H3_H4",
+            "calibrate_picam.calibrate_lens:detectBoard",
+            "per_image",
+            {
+                "file": fname.name,
+                "gray_wh": [int(img_size[0]), int(img_size[1])],
+                "charuco_ids_is_none": ids_none,
+                "num_charuco_ids": n_ids,
+                "accepted": bool(charuco_ids is not None and len(charuco_ids) > 4),
+                "corners_shape": None
+                if charuco_corners is None
+                else list(charuco_corners.shape),
+            },
+        )
+        # #endregion
 
         if charuco_ids is not None and len(charuco_ids) > 4:
             all_charuco_corners.append(charuco_corners)
@@ -167,6 +238,14 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     images = sorted(CALIB_IMAGES_DIR.glob("*.jpg"))
+    # #region agent log
+    _agent_log(
+        "H2",
+        "calibrate_picam.__main__",
+        "glob_jpg",
+        {"dir": str(CALIB_IMAGES_DIR), "n_jpg": len(images), "sample": [p.name for p in images[:5]]},
+    )
+    # #endregion
     if not images:
         raise SystemExit(f"No JPG files in {CALIB_IMAGES_DIR}")
 
