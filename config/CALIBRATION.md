@@ -54,6 +54,16 @@ cd /path/to/rasppi_src
 python3 config/calibrate_picam.py
 ```
 
+**Board must match the printed CharUco** (grid size, square/marker lengths in the same units, ArUco dictionary). Defaults in the script are a small **5×7** grid; if yours differs, pass e.g. `--squares-x 8 --squares-y 11 --square-length 0.0095 --marker-length 0.007 --dict 0` (see `cv2.aruco` dict constants).
+
+If you get “0 succeeded”:
+
+```bash
+python3 config/calibrate_picam.py --diagnose
+```
+
+This reports **raw ArUco marker** count on the first image: **0 markers** → wrong `--dict`, blur, or no board in frame; **&gt;0 markers** but still no CharUco → wrong **`--squares-x` / `--squares-y`** or length parameters.
+
 ---
 
 ## 4a. What actually feeds centroiding / voltage mapping
