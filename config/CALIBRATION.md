@@ -62,7 +62,13 @@ If you get “0 succeeded”:
 python3 config/calibrate_picam.py --diagnose
 ```
 
-This reports **raw ArUco marker** count on the first image: **0 markers** → wrong `--dict`, blur, or no board in frame; **&gt;0 markers** but still no CharUco → wrong **`--squares-x` / `--squares-y`** or length parameters.
+This reports **raw ArUco marker** count, **decoded marker IDs**, and **`CharucoDetector.detectBoard`** corner count on the first image. **0 markers** → wrong `--dict`, blur, or no board in frame. **Markers &gt; 0 but CharUco corner count `None`/0** → often **legacy vs new CharUco layout** (try **`--legacy-charuco`** with the same other flags), or wrong **`--squares-x` / `--squares-y`**, or **`--dict`** (e.g. `DICT_4X4_50` only allows marker ids **0–49**). **Square/marker lengths** can be in mm or m as long as the **ratio** matches the printed board (e.g. 30 and 23 is the same ratio as 0.03 and 0.023).
+
+Example with legacy pattern:
+
+```bash
+python3 config/calibrate_picam.py --legacy-charuco --squares-x 8 --squares-y 6 --square-length 30 --marker-length 23 --diagnose
+```
 
 ---
 

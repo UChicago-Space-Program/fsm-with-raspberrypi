@@ -9,6 +9,7 @@ board creation). Use --diagnose if detection fails.
 """
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -61,26 +62,57 @@ def _agent_log(hypothesis_id: str, location: str, message: str, data: dict, run_
 # #endregion
 
 
-def make_charuco_board(squares_x: int, squares_y: int, square_len: float, marker_len: float, dict_type: int):
-    """Build Charuco board + CharucoDetector for given geometry."""
+def make_charuco_board(
+    squares_x: int,
+    squares_y: int,
+    square_len: float,
+    marker_len: float,
+    dict_type: int,
+    legacy_pattern: bool = False,
+):
+    """
+    Build Charuco board + CharucoDetector.
+
+    OpenCV 4.7+ uses a **new** CharUco chessboard layout by default. Targets from older
+    OpenCV, calib.io, etc. often need ``setLegacyPattern(True)`` or CharUco never
+    assembles even when ArUco markers decode (see ``--legacy-charuco``).
+    """
     dictionary = aruco.getPredefinedDictionary(dict_type)
     board = aruco.CharucoBoard((squares_x, squares_y), square_len, marker_len, dictionary)
+    if legacy_pattern:
+        if hasattr(board, "setLegacyPattern"):
+            board.setLegacyPattern(True)
+        else:
+            print(
+                "Warning: CharucoBoard has no setLegacyPattern(); use OpenCV 4.7+ or skip --legacy-charuco",
+                file=sys.stderr,
+            )
     detector = aruco.CharucoDetector(board)
     return board, dictionary, detector
 
 
-def _count_aruco_markers(gray: np.ndarray, dictionary) -> int:
-    """Raw ArUco marker count (Charuco assembly may still fail if grid is wrong)."""
+def _detect_aruco_ids(gray: np.ndarray, dictionary):
+    """Return (num_markers, sorted_unique_ids list, raw ids ndarray or None)."""
     params = aruco.DetectorParameters()
     if hasattr(aruco, "ArucoDetector"):
         ad = aruco.ArucoDetector(dictionary, params)
         _corners, ids, _rej = ad.detectMarkers(gray)
     else:
         _corners, ids, _rej = aruco.detectMarkers(gray, dictionary, parameters=params)
-    return 0 if ids is None else int(len(ids))
+    if ids is None:
+        return 0, [], None
+    flat = np.unique(ids.flatten()).astype(int).tolist()
+    return int(len(ids)), flat, ids
 
 
-def diagnose_calibration_images(image_paths: list, dictionary, board_desc: dict) -> None:
+def _count_aruco_markers(gray: np.ndarray, dictionary) -> int:
+    n, _, _ = _detect_aruco_ids(gray, dictionary)
+    return n
+
+
+def diagnose_calibration_images(
+    image_paths: list, dictionary, board_desc: dict, charuco_detector=None
+) -> None:
     """Print and log ArUco counts on first image to separate dict vs Charuco-grid issues."""
     if not image_paths:
         print("No images to diagnose.")
@@ -91,21 +123,37 @@ def diagnose_calibration_images(image_paths: list, dictionary, board_desc: dict)
         print(f"Diagnose: cannot read {first}")
         return
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    n_mark = _count_aruco_markers(gray, dictionary)
+    n_mark, uniq_ids, _raw = _detect_aruco_ids(gray, dictionary)
+    charuco_n = None
+    if charuco_detector is not None:
+        _cc, cids, _, _ = charuco_detector.detectBoard(gray)
+        charuco_n = None if cids is None else int(len(cids))
+
+    id_preview = uniq_ids[:24] if len(uniq_ids) > 24 else uniq_ids
+    suffix = " ..." if len(uniq_ids) > 24 else ""
     print(
         f"Diagnose ({first.name}): ArUco markers detected = {n_mark}\n"
-        f"  If 0: wrong DICT (--dict), blur, glare, or board not in frame.\n"
-        f"  If >0 but calibration still finds 0 CharUco corners: wrong --squares-x/--squares-y "
-        f"or --square-length / --marker-length vs printed board.\n"
+        f"  Unique marker IDs (sorted, sample): {id_preview}{suffix}  (count={len(uniq_ids)})\n"
+        f"  CharucoDetector.detectBoard → num_charuco corner ids: {charuco_n}\n"
+        f"  If n_mark>0 but charuco is 0/None: try --legacy-charuco, swap --squares-x/--squares-y, "
+        f"or confirm dict (DICT_4X4_50 allows ids 0..49 only).\n"
+        f"  Square/marker lengths only need consistent **ratio** (30mm & 23mm same as 0.03 & 0.023 m).\n"
         f"  Active model: squares=({board_desc['squares_x']}, {board_desc['squares_y']}), "
-        f"dict={board_desc['dict_type']}"
+        f"dict={board_desc['dict_type']}, legacy={board_desc.get('legacy_charuco', False)}"
     )
     # #region agent log
     _agent_log(
         "H1",
         "calibrate_picam.diagnose",
         "aruco_marker_count_first_image",
-        {"file": first.name, "num_aruco_markers": n_mark, **board_desc},
+        {
+            "file": first.name,
+            "num_aruco_markers": n_mark,
+            "unique_marker_ids_sample": uniq_ids[:32],
+            "num_unique_ids": len(uniq_ids),
+            "charuco_ids_count": charuco_n,
+            **board_desc,
+        },
         run_id="post-fix",
     )
     # #endregion
@@ -309,6 +357,12 @@ if __name__ == "__main__":
         help="Only analyze first calib image: print raw ArUco marker count and hints.",
     )
     parser.add_argument(
+        "--legacy-charuco",
+        action="store_true",
+        help="Use legacy CharUco chessboard pattern (OpenCV 4.7+). Needed for many PDFs from "
+        "older OpenCV / third-party generators when markers decode but CharUco stays empty.",
+    )
+    parser.add_argument(
         "--homography-ref",
         type=Path,
         default=None,
@@ -329,6 +383,7 @@ if __name__ == "__main__":
         args.square_length,
         args.marker_length,
         args.dict,
+        legacy_pattern=args.legacy_charuco,
     )
     bdesc = _board_desc(
         args.squares_x,
@@ -337,6 +392,7 @@ if __name__ == "__main__":
         args.marker_length,
         args.dict,
     )
+    bdesc["legacy_charuco"] = bool(args.legacy_charuco)
 
     images = sorted(CALIB_IMAGES_DIR.glob("*.jpg"))
     # #region agent log
@@ -350,7 +406,7 @@ if __name__ == "__main__":
     # #endregion
 
     if args.diagnose:
-        diagnose_calibration_images(images, dictionary, bdesc)
+        diagnose_calibration_images(images, dictionary, bdesc, charuco_detector)
         raise SystemExit(0)
 
     if args.update_homography is not None:
