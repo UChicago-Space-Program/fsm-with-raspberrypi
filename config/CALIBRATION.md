@@ -64,10 +64,17 @@ python3 config/calibrate_picam.py --diagnose
 
 This reports **raw ArUco marker** count, **decoded marker IDs**, and **`CharucoDetector.detectBoard`** corner count on the first image. **0 markers** → wrong `--dict`, blur, or no board in frame. **Markers &gt; 0 but CharUco corner count `None`/0** → often **legacy vs new CharUco layout** (try **`--legacy-charuco`** with the same other flags), or wrong **`--squares-x` / `--squares-y`**, or **`--dict`** (e.g. `DICT_4X4_50` only allows marker ids **0–49**). **Square/marker lengths** can be in mm or m as long as the **ratio** matches the printed board (e.g. 30 and 23 is the same ratio as 0.03 and 0.023).
 
-Example with legacy pattern:
+**Legacy CharUco (typical 8×6 print, DICT_4X4_50)** — exact command used when the default OpenCV 4.7+ CharUco layout does not match the PDF:
 
 ```bash
-python3 config/calibrate_picam.py --legacy-charuco --squares-x 8 --squares-y 6 --square-length 30 --marker-length 23 --diagnose
+cd /path/to/rasppi_src
+python3 config/calibrate_picam.py --legacy-charuco --squares-x 8 --squares-y 6 --square-length 30 --marker-length 23 --dict 0
+```
+
+Same flags with **`--diagnose`** (first image only, no `npz` write):
+
+```bash
+python3 config/calibrate_picam.py --legacy-charuco --squares-x 8 --squares-y 6 --square-length 30 --marker-length 23 --dict 0 --diagnose
 ```
 
 ---
