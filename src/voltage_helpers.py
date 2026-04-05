@@ -6,7 +6,7 @@ of under the hood.
 ADD MIRRORCLE DOCUMENTATION DESCRIBING HOW TO CONVERT. 
 """
 import time
-from constants import V_MAX_CHANNEL, VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS, VBIAS, V_MAX_DIGITAL
+from .constants import V_MAX_CHANNEL, VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS, VBIAS, V_MAX_DIGITAL
 IS_LINUX = True
 
 def channel_voltage_to_digital(volts: float) -> int:
