@@ -140,9 +140,17 @@ Calibration capture and voltage mapping share **`src/picam.py`**: YUV420 video a
 
 1. **Capture** — From the repo root (or any cwd with `src` importable), run `config/get_calib_photos.py`. It saves JPEGs under `config/calib_images/`. Adjust `FRAME_SIZE` in that script to match your experiment; it must match the **`--resolution`** width passed to `voltage_mapping_main.py` (height is 480 unless you change `src/picam.py` and the capture script together).
 2. **Calibrate** — Run `config/calibrate_picam.py`. It reads `config/calib_images/*.jpg`, runs `calibrateCameraCharuco`, and writes **`config/camera_params.npz`** (includes `mtx`, `dist`, `rms`). Calibration fails loudly if too few detections or RMS reprojection error is too high (see `MAX_RMS_PIXELS` in that file).
-3. **Map** — Run `voltage_mapping_main.py` with the same width so intrinsics apply consistently if you later wire undistortion into the centroid pipeline.
+3. **Homography (optional, for mm in CSV)** — Board must match the same ChArUco definition as in `config/calibrate_picam.py`. Either run `python config/calibrate_picam.py --homography-ref path/to/board_visible.jpg` after capture-based lens cal, or update H later with `python config/calibrate_picam.py --update-homography path/to/board_visible.jpg`. This stores **`H`** in `camera_params.npz` alongside `mtx` / `dist`.
 
-**Important:** `src/centroiding.py` does **not** load `camera_params.npz` yet. Centroids are computed on raw grayscale from Picamera2. To use lens correction or homography (`get_homography_matrix` / `get_laser_position_mm` in `config/calibrate_picam.py`), add a small preprocessing step (load `npz`, `cv2.undistort`, optional `perspectiveTransform`) before `find_laser_centroid` — that integration is left for a follow-up.
+4. **Map** — Run `voltage_mapping_main.py` with the same `--resolution` width. By default it loads `config/camera_params.npz`: frames are **undistorted**, centroids computed on rectified gray, then mapped with **`H`** to **board-plane mm** when `H` is present. CSV columns:
+
+| `camera_params.npz` | CSV columns (after `vdiffx`, `vdiffy`) |
+|---------------------|----------------------------------------|
+| `mtx`, `dist` only | `cx_ud_px`, `cy_ud_px` (undistorted pixels) |
+| includes `H` | `x_mm`, `y_mm` |
+| run with `--no-calib` | `cx_raw`, `cy_raw` |
+
+Override the file with `--calibration /path/to.npz`, or use `--no-calib` for raw pixels (e.g. quick tests without `npz`).
 
 ---
 

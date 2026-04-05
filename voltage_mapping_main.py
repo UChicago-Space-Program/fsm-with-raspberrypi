@@ -2,6 +2,7 @@
 import time
 import csv
 import click
+from pathlib import Path
 
 from src import FSM, picam, centroiding, VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS
 
@@ -14,17 +15,30 @@ several parameters to sweep mirror across an axis and calculate angular displace
 BE CAREFUL WITH THE MIRROR IF YOU USE IT WRONG MINUS LOTS OF MONEY (1000 i thjink)
 """
 
-def get_frames(cam, num_frames, roi) -> tuple:
+_DEFAULT_CAL = Path(__file__).resolve().parent / "config" / "camera_params.npz"
 
+
+def _csv_header(calib):
+    if calib is None:
+        return ["vdiffx", "vdiffy", "cx_raw", "cy_raw"]
+    if calib.H is not None:
+        return ["vdiffx", "vdiffy", "x_mm", "y_mm"]
+    return ["vdiffx", "vdiffy", "cx_ud_px", "cy_ud_px"]
+
+
+def get_frames(cam, num_frames, roi, calib=None) -> tuple:
     """
-    return average global centroid accross number of frames taken per location
+    Average centroid over num_frames. pixels undistorted, or board mm if calib.H set.
     """
     cx = []
     cy = []
     for _ in range(num_frames):
         gray = picam.get_gray_frame(cam)
         time.sleep(0.05)
-        res = centroiding.find_laser_centroid(gray, roi)
+        if calib is not None:
+            res = calib.find_corrected_rectified_centroid(gray, roi)
+        else:
+            res = centroiding.find_laser_centroid(gray, roi)
         if res is None:
             continue
         cx.append(res[0])
@@ -35,13 +49,13 @@ def get_frames(cam, num_frames, roi) -> tuple:
 
     return ((sum(cx)/len(cx)), (sum(cy)/len(cy)))
 
-def write_to_outfile(outfile, coords, mode):
+def write_to_outfile(outfile, coords, mode, header_row):
     """
     Write data from results array into outfile
     """
     with open(outfile, mode, newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["vdiffx", "vdiffy", "cx", "cy"])
+        writer.writerow(header_row)
         writer.writerows(coords)
 
 # click is just an easy library for handling CLI interface --> configure parameters using cmd line
@@ -57,13 +71,27 @@ def write_to_outfile(outfile, coords, mode):
 @click.option('--roi', default=50, type=int, help="Size in pixels of roi around centroid")
 @click.option('--mode', default="man", type=str, help="Set mode <auto> for a fast sweep <man> for stepping")
 @click.option('--image_outfile', default=None, type=str, help="If set, writes grayscale image to outfile")
-def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolution, roi, mode, image_outfile):
+@click.option(
+    '--calibration',
+    'calibration_path',
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=_DEFAULT_CAL,
+    help="camera_params.npz from config/calibrate_picam.py (lens + optional H).",
+)
+@click.option(
+    '--no-calib',
+    is_flag=True,
+    help="Use raw sensor pixels in CSV (skip undistort / mm transform).",
+)
+def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolution, roi, mode, image_outfile,
+        calibration_path, no_calib):
     """
     cmd function for click to enable easy CLI
     """
 
     fsm = FSM()
     cam = None
+    calib = None
     try:
         try:
             cam = picam.init_camera(resolution)
@@ -72,9 +100,25 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
             input("Cam not connected. Press any key to shutdown and end.")
             return
 
+        if not no_calib:
+            try:
+                calib = centroiding.CameraCalibration.load(calibration_path)
+                if calib.H is not None:
+                    print("Calibration: undistort + homography (CSV in board mm).")
+                else:
+                    print("Calibration: undistorted pixels only (add H via calibrate_picam for mm).")
+            except FileNotFoundError as exc:
+                print(exc)
+                print("Run config/calibrate_picam.py first, or pass --no-calib.")
+                input("Press any key to exit.")
+                return
+        header = _csv_header(calib)
+
         if mode == "test-cam":
             print("Taking picture with picam to test dat jit")
             gray = picam.get_gray_frame(cam)
+            if calib is not None:
+                gray = calib.undistort_gray(gray)
             centroiding.grayscale_to_outfile(gray, "gray1.jpg")
             return
 
@@ -101,7 +145,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                         print(f'setting vdiff: x: {x}, y: {y}')
                         fsm.set_vdiff(float(x), float(y))
 
-                        centroid = get_frames(cam, num_frames, roi)
+                        centroid = get_frames(cam, num_frames, roi, calib)
                         vdiff_x, vdiff_y = fsm.get_voltages()
                         coords.append([vdiff_x, vdiff_y, centroid[0], centroid[1]])
 
@@ -115,7 +159,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                 print("Other error occurred, shutting down.")
             finally:
                 fsm.close()
-                write_to_outfile(outfile, coords, "a")
+                write_to_outfile(outfile, coords, "a", header)
             return
 
         elif mode == "auto":
@@ -146,7 +190,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                     else:
                         break
 
-                    centroid = get_frames(cam, num_frames, roi)
+                    centroid = get_frames(cam, num_frames, roi, calib)
                     vdiff_x, vdiff_y = fsm.get_voltages()
                     coords.append([vdiff_x, vdiff_y, centroid[0], centroid[1]])
 
@@ -160,7 +204,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
                 print("Other error occurred, shutting down.")
             finally:
                 fsm.close()
-                write_to_outfile(outfile, coords, "w")
+                write_to_outfile(outfile, coords, "w", header)
             return
 
         else:

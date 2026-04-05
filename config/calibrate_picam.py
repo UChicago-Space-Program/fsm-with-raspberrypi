@@ -4,6 +4,7 @@ ChArUco lens calibration and homography helpers (OpenCV).
 Capture calibration images with get_calib_photos.py (Picamera2), then run this
 script to produce camera_params.npz next to this file.
 """
+import argparse
 from pathlib import Path
 
 import cv2
@@ -126,11 +127,60 @@ def get_laser_position_mm(frame, mtx, dist, H):
     return world_point[0][0]
 
 
+def update_homography_only(ref_image: Path) -> None:
+    """Load existing camera_params.npz and replace/add H from a single board image."""
+    if not OUTPUT_NPZ.is_file():
+        raise SystemExit(f"Missing {OUTPUT_NPZ}; run lens calibration first.")
+    data = np.load(OUTPUT_NPZ, allow_pickle=False)
+    mtx = data["mtx"]
+    dist = data["dist"]
+    rms = float(data["rms"]) if "rms" in data.files else 0.0
+    frame = cv2.imread(str(ref_image))
+    if frame is None:
+        raise SystemExit(f"Could not read image: {ref_image}")
+    H, _ = get_homography_matrix(frame, mtx, dist)
+    if H is None:
+        raise SystemExit("ChArUco board not detected in reference image; cannot compute H.")
+    np.savez(OUTPUT_NPZ, mtx=mtx, dist=dist, rms=rms, H=H)
+    print(f"Homography saved into {OUTPUT_NPZ}")
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="ChArUco camera calibration for mapping pipeline.")
+    parser.add_argument(
+        "--homography-ref",
+        type=Path,
+        default=None,
+        help="After lens calibration, compute H from this BGR image (board visible) and save with npz.",
+    )
+    parser.add_argument(
+        "--update-homography",
+        type=Path,
+        default=None,
+        metavar="REF.jpg",
+        help="Skip lens calibration; load camera_params.npz and set/replace H from this image only.",
+    )
+    args = parser.parse_args()
+
+    if args.update_homography is not None:
+        update_homography_only(args.update_homography)
+        raise SystemExit(0)
+
     images = sorted(CALIB_IMAGES_DIR.glob("*.jpg"))
     if not images:
         raise SystemExit(f"No JPG files in {CALIB_IMAGES_DIR}")
 
     rms, mtx, dist = calibrate_lens(images)
-    np.savez(OUTPUT_NPZ, mtx=mtx, dist=dist, rms=rms)
+    save_kw = dict(mtx=mtx, dist=dist, rms=rms)
+    if args.homography_ref is not None:
+        ref = cv2.imread(str(args.homography_ref))
+        if ref is None:
+            raise SystemExit(f"Could not read --homography-ref: {args.homography_ref}")
+        H, _ = get_homography_matrix(ref, mtx, dist)
+        if H is None:
+            raise SystemExit("ChArUco not detected in homography reference; npz saved without H.")
+        save_kw["H"] = H
+        print("Homography H included in output.")
+
+    np.savez(OUTPUT_NPZ, **save_kw)
     print(f"Lens calibration saved to {OUTPUT_NPZ} (RMS: {rms:.4f} px)")
