@@ -1,4 +1,4 @@
-from fsm_obj import FSM
+from .fsm_obj import FSM
 import centroiding
 import picam
-from constants import VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS
+from .constants import VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS
