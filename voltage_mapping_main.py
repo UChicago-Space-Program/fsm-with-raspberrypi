@@ -4,6 +4,9 @@ import csv
 import click
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 from src import FSM, picam, centroiding, VDIFF_MAX_VOLTS, VDIFF_MIN_VOLTS
 
 
@@ -22,32 +25,52 @@ def _csv_header(calib):
     if calib is None:
         return ["vdiffx", "vdiffy", "cx_raw", "cy_raw"]
     if calib.H is not None:
-        return ["vdiffx", "vdiffy", "x_mm", "y_mm"]
+        return ["vdiffx", "vdiffy", "cx_ud_px", "cy_ud_px", "x_mm", "y_mm"]
     return ["vdiffx", "vdiffy", "cx_ud_px", "cy_ud_px"]
 
 
-def get_frames(cam, num_frames, roi, calib=None) -> tuple:
+def get_frames(cam, num_frames, roi, calib=None):
     """
-    Average centroid over num_frames. pixels undistorted, or board mm if calib.H set.
+    Average centroid over num_frames. Returns a list matching _csv_header(calib):
+    raw px | undistorted px | undistorted px + board mm (when H present).
     """
-    cx = []
-    cy = []
+    if calib is not None and calib.H is not None:
+        cx, cy, mx, my = [], [], [], []
+        for _ in range(num_frames):
+            gray = picam.get_gray_frame(cam)
+            time.sleep(0.05)
+            rect = calib.undistort_gray(gray)
+            pt = centroiding.find_laser_centroid(rect, roi)
+            if pt is None:
+                continue
+            pix = np.array([[[pt[0], pt[1]]]], dtype=np.float32)
+            world = cv2.perspectiveTransform(pix, calib.H)
+            cx.append(float(pt[0]))
+            cy.append(float(pt[1]))
+            mx.append(float(world[0, 0, 0]))
+            my.append(float(world[0, 0, 1]))
+        if not cx:
+            return [float("nan"), float("nan"), float("nan"), float("nan")]
+        n = len(cx)
+        return [sum(cx) / n, sum(cy) / n, sum(mx) / n, sum(my) / n]
+
+    cx, cy = [], []
     for _ in range(num_frames):
         gray = picam.get_gray_frame(cam)
         time.sleep(0.05)
-        if calib is not None:
-            res = calib.find_corrected_rectified_centroid(gray, roi)
-        else:
+        if calib is None:
             res = centroiding.find_laser_centroid(gray, roi)
+        else:
+            res = calib.find_corrected_rectified_centroid(gray, roi)
         if res is None:
             continue
         cx.append(res[0])
         cy.append(res[1])
 
     if not cx:
-        return (float("nan"), float("nan"))
+        return [float("nan"), float("nan")]
 
-    return ((sum(cx)/len(cx)), (sum(cy)/len(cy)))
+    return [sum(cx) / len(cx), sum(cy) / len(cy)]
 
 def write_to_outfile(outfile, coords, mode, header_row):
     """
@@ -147,7 +170,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
 
                         centroid = get_frames(cam, num_frames, roi, calib)
                         vdiff_x, vdiff_y = fsm.get_voltages()
-                        coords.append([vdiff_x, vdiff_y, centroid[0], centroid[1]])
+                        coords.append([vdiff_x, vdiff_y, *centroid])
 
                     else:
                         print("Bad coords. Input <x y>")
@@ -192,7 +215,7 @@ def cmd(num_frames, settling_time, axis, outfile, step_size, start, end, resolut
 
                     centroid = get_frames(cam, num_frames, roi, calib)
                     vdiff_x, vdiff_y = fsm.get_voltages()
-                    coords.append([vdiff_x, vdiff_y, centroid[0], centroid[1]])
+                    coords.append([vdiff_x, vdiff_y, *centroid])
 
                     time.sleep(settling_time)
 
